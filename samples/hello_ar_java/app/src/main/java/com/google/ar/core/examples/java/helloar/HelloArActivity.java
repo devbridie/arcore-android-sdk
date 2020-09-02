@@ -26,11 +26,15 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.Toast;
 import com.google.ar.core.Anchor;
 import com.google.ar.core.ArCoreApk;
 import com.google.ar.core.Camera;
+import com.google.ar.core.CameraConfig;
+import com.google.ar.core.CameraConfigFilter;
 import com.google.ar.core.Config;
 import com.google.ar.core.Coordinates2d;
 import com.google.ar.core.Frame;
@@ -63,6 +67,7 @@ import com.google.ar.core.exceptions.UnavailableSdkTooOldException;
 import com.google.ar.core.exceptions.UnavailableUserDeclinedInstallationException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
@@ -114,6 +119,9 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
 
   private final ArrayList<ColoredAnchor> anchors = new ArrayList<>();
 
+  List<CameraConfig> configs;
+  Integer currentIndex = null;
+
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
@@ -139,6 +147,28 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
     depthSettings.onCreate(this);
     ImageButton settingsButton = findViewById(R.id.settings_button);
     settingsButton.setOnClickListener(this::launchSettingsMenuDialog);
+
+    settingsButton.setOnClickListener(new OnClickListener() {
+      @Override
+      public void onClick(View v) {
+        int newIndex = (currentIndex == null) ? 0 : currentIndex+1;
+        currentIndex = newIndex % configs.size();
+        resetCameraConfig();
+      }
+    });
+  }
+
+  private void resetCameraConfig() {
+    CameraConfig newCameraConfig = configs.get(currentIndex);
+    session.pause();
+    session.setCameraConfig(newCameraConfig);
+    try {
+      session.resume();
+    } catch (CameraNotAvailableException e) {
+      e.printStackTrace();
+    }
+
+    Log.i("CONFIG", "Set config " + newCameraConfig + " with values " + newCameraConfig.getImageSize());
   }
 
   @Override
@@ -196,6 +226,10 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
         Log.e(TAG, "Exception creating session", exception);
         return;
       }
+    }
+    configs = session.getSupportedCameraConfigs(new CameraConfigFilter(session));
+    for (CameraConfig config : configs) {
+      Log.i("CONFIG", config.getImageSize().toString());
     }
 
     // Note that order matters - see the note in onPause(), the reverse applies here.
@@ -293,6 +327,9 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
       // camera framerate.
       Frame frame = session.update();
       Camera camera = frame.getCamera();
+
+      int[] dimensions = camera.getImageIntrinsics().getImageDimensions();
+      Log.i("CONFIG", "image dimensions: " + dimensions[0] + ", " + dimensions[1]);
 
       if (frame.hasDisplayGeometryChanged() || calculateUVTransform) {
         // The UV Transform represents the transformation between screenspace in normalized units
