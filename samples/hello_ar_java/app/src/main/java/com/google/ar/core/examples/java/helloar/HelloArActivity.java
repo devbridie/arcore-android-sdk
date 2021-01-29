@@ -35,6 +35,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.ar.core.Anchor;
 import com.google.ar.core.ArCoreApk;
 import com.google.ar.core.Camera;
+import com.google.ar.core.CameraConfig;
+import com.google.ar.core.CameraConfigFilter;
 import com.google.ar.core.Config;
 import com.google.ar.core.Config.InstantPlacementMode;
 import com.google.ar.core.Frame;
@@ -78,6 +80,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 
@@ -472,7 +475,7 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     try {
       backgroundRenderer.setUseDepthVisualization(
           render, depthSettings.depthColorVisualizationEnabled());
-      backgroundRenderer.setUseOcclusion(render, depthSettings.useDepthForOcclusion());
+      backgroundRenderer.setUseOcclusion(render, true);
     } catch (IOException e) {
       Log.e(TAG, "Failed to read a required asset file", e);
       messageSnackbarHelper.showError(this, "Failed to read a required asset file: " + e);
@@ -813,6 +816,12 @@ public class HelloArActivity extends AppCompatActivity implements SampleRender.R
     } else {
       config.setInstantPlacementMode(InstantPlacementMode.DISABLED);
     }
+
+    CameraConfigFilter filter = new CameraConfigFilter(session);
+    filter.setDepthSensorUsage(EnumSet.of(CameraConfig.DepthSensorUsage.DO_NOT_USE));
+    List<CameraConfig> cameraConfigList = session.getSupportedCameraConfigs(filter);
+    session.setCameraConfig(cameraConfigList.get(0));
+
     session.configure(config);
   }
 }

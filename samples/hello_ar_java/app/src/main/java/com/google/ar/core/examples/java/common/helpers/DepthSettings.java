@@ -39,7 +39,7 @@ public class DepthSettings {
 
   /** Retrieves whether depth-based occlusion is enabled. */
   public boolean useDepthForOcclusion() {
-    return useDepthForOcclusion;
+    return true;
   }
 
   public void setUseDepthForOcclusion(boolean enable) {
