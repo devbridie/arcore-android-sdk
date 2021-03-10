@@ -50,6 +50,7 @@ import com.google.ar.core.Anchor;
 import com.google.ar.core.ArCoreApk;
 import com.google.ar.core.Camera;
 import com.google.ar.core.Config;
+import com.google.ar.core.Config.InstantPlacementMode;
 import com.google.ar.core.Frame;
 import com.google.ar.core.HitResult;
 import com.google.ar.core.Plane;
@@ -57,6 +58,7 @@ import com.google.ar.core.Point;
 import com.google.ar.core.Point.OrientationMode;
 import com.google.ar.core.PointCloud;
 import com.google.ar.core.Session;
+import com.google.ar.core.Session.Feature;
 import com.google.ar.core.SharedCamera;
 import com.google.ar.core.Trackable;
 import com.google.ar.core.TrackingState;
@@ -192,6 +194,8 @@ public class SharedCameraActivity extends AppCompatActivity
   private static final Short AUTOMATOR_DEFAULT = 0;
   private static final String AUTOMATOR_KEY = "automator";
   private final AtomicBoolean automatorRun = new AtomicBoolean(false);
+
+  private AtomicBoolean isFirstFrameAfterResume = new AtomicBoolean(true);
 
   // Prevent any changes to camera capture session after CameraManager.openCamera() is called, but
   // before camera device becomes active.
@@ -460,6 +464,7 @@ public class SharedCameraActivity extends AppCompatActivity
         backgroundRenderer.suppressTimestampZeroRendering(false);
         // Resume ARCore.
         sharedSession.resume();
+        isFirstFrameAfterResume.set(true);
         arcoreActive = true;
         updateSnackbarMessage();
 
@@ -476,6 +481,7 @@ public class SharedCameraActivity extends AppCompatActivity
     if (arcoreActive) {
       // Pause ARCore.
       sharedSession.pause();
+      isFirstFrameAfterResume.set(true);
       arcoreActive = false;
       updateSnackbarMessage();
     }
@@ -596,6 +602,7 @@ public class SharedCameraActivity extends AppCompatActivity
       // Enable auto focus mode while ARCore is running.
       Config config = sharedSession.getConfig();
       config.setFocusMode(Config.FocusMode.AUTO);
+      config.setInstantPlacementMode(InstantPlacementMode.LOCAL_Y_UP);
       sharedSession.configure(config);
     }
 
@@ -835,8 +842,12 @@ public class SharedCameraActivity extends AppCompatActivity
   public void onDrawFrameCamera2() {
     SurfaceTexture texture = sharedCamera.getSurfaceTexture();
 
-    // Ensure the surface is attached to the GL context.
-    if (!isGlAttached) {
+    if (isFirstFrameAfterResume.getAndSet(false)) {
+      try {
+        texture.detachFromGLContext();
+      } catch (Exception e) {
+        // Ignore if fails, it may not be attached yet.
+      }
       texture.attachToGLContext(backgroundRenderer.getTextureId());
       isGlAttached = true;
     }
@@ -864,6 +875,14 @@ public class SharedCameraActivity extends AppCompatActivity
     if (!arcoreActive) {
       // ARCore not yet active, so nothing to draw yet.
       return;
+    }
+    if (isFirstFrameAfterResume.getAndSet(false)) {
+      // Leak a texture to force ARCore to allocate and register another.
+      // Note that we're only leaking a texture handle, so leak should be very small, and
+      // relatively infrequent (that is, not on order of framerate).
+      sharedCamera.getSurfaceTexture().detachFromGLContext();
+      int[] leakedTextures = new int[1];
+      GLES20.glGenTextures(1, leakedTextures, 0);
     }
 
     if (errorCreatingSession) {
