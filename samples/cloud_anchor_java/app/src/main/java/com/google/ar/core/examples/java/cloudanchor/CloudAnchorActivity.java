@@ -37,6 +37,7 @@ import com.google.ar.core.ArCoreApk;
 import com.google.ar.core.Camera;
 import com.google.ar.core.Config;
 import com.google.ar.core.Config.CloudAnchorMode;
+import com.google.ar.core.Config.DepthMode;
 import com.google.ar.core.Frame;
 import com.google.ar.core.HitResult;
 import com.google.ar.core.Plane;
@@ -253,6 +254,7 @@ public class CloudAnchorActivity extends AppCompatActivity
       // Create default config and check if supported.
       Config config = new Config(session);
       config.setCloudAnchorMode(CloudAnchorMode.ENABLED);
+      config.setDepthMode(DepthMode.AUTOMATIC);
       session.configure(config);
 
       // Setting the session in the HostManager.
